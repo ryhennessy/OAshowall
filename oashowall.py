@@ -1,5 +1,6 @@
 #!/usr/bin/python
-
+# This is really old code I used back in my days at United to display
+# Data from multiple HP OA devices.
 import pexpect
 import base64
 from threading import Thread
@@ -17,42 +18,42 @@ class connectOA(Thread):
                         item = self.queue.get()
                         if item is None:
                                 break
-		
+
 			#Transpose old, passed varilables, to ones now passed by
-			#Queue don't want to have to change them in the code below 
+			#Queue don't want to have to change them in the code below
 			#(Yes, I am that lazy)
 
 			oaname = item[0]
 			user = item[1]
 			password = item[2]
-	
+
 			#Get the shortname from the FQDN of the OA
 			shname = oaname.split(".")[0]
-				
+
 			fp = open(shname.lower() + ".txt","w")
 
 			#Add ">" to end of shname to match the prompt
-			#Also create a expect vaiable for OA's that are using the failover OA 
+			#Also create a expect vaiable for OA's that are using the failover OA
 			#   ie. shname-1
 			shname_fo = shname + "-1>"
-			shname = shname + ">"	
+			shname = shname + ">"
 			connoa = pexpect.spawn("ssh " + user + "@"+ oaname)
 			rc=connoa.expect(["password:", '\)\?', pexpect.EOF])
 
-			if rc == 1: 
+			if rc == 1:
 				connoa.sendline("yes")
 				connoa.expect("password:")
 			if rc == 2:
 				fp.write("Unable to connect to OA")
-				fp.close()	
+				fp.close()
 				return
-			
+
 			connoa.sendline(password)
 			rc=connoa.expect([shname.upper(), shname.lower(), "password:", shname_fo.upper(), shname_fo.lower()])
 			if rc == 2:
 				fp.write("Incorrect Password for OA")
 				fp.close()
-				return	
+				return
 			connoa.logfile = fp
 			connoa.sendline("show all")
 			connoa.expect([shname.upper(), shname.lower(), shname_fo.upper(), shname_fo.lower()], timeout=400)
@@ -62,7 +63,7 @@ class connectOA(Thread):
 
 if __name__ == "__main__":
 
-	
+
 	#Create the Queue Object.
 	queue = Queue(0)
 
@@ -74,21 +75,19 @@ if __name__ == "__main__":
 	oas.pop()
 
 	oafp.close()
-	
+
 	infofp = open (".datafile","r")
 	linfo=infofp.read()
 	linfo=linfo.split("\n")
 
-	
-	#Fill the Queue with all of the oainfo		
+
+	#Fill the Queue with all of the oainfo
 	for oaname in oas:
-		queue.put([oaname,base64.b64decode(linfo[0]),base64.b64decode(linfo[1])]) 			
-	
+		queue.put([oaname,base64.b64decode(linfo[0]),base64.b64decode(linfo[1])])
+
 	#Fill in the Queue with the 'None' item to stop/kill the threads
 	for i in range(10):
-		queue.put(None)		
+		queue.put(None)
 
 	for i in range(10):
 		connectOA(queue).start()
-	
-		
